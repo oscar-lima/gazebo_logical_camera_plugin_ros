@@ -29,7 +29,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES logical_camera_plugin
   CATKIN_DEPENDS gazebo_ros object_pose_msgs roscpp sensor_msgs std_msgs
-  DEPENDS gazebo
+  DEPENDS GAZEBO
 )
 
 ###########
