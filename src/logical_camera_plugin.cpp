@@ -50,6 +50,9 @@ void LogicalCameraPlugin::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 
     // Connect to the sensor update event.
     this->updateConnection = this->parentSensor->ConnectUpdated(std::bind(&LogicalCameraPlugin::OnUpdate, this));
+    // The logical camera sensor updates in the non-rendering sensor thread; the bounding boxes are computed from the
+    // rendering scene, so that part runs after the prerender phase in the rendering thread.
+    this->postRenderConnection = event::Events::ConnectPostRender(std::bind(&LogicalCameraPlugin::OnPostRender, this));
 
     // Make sure the parent sensor is active.
     this->parentSensor->SetActive(true);
@@ -85,12 +88,24 @@ void LogicalCameraPlugin::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 }
 
 void LogicalCameraPlugin::OnUpdate(){
+    std::lock_guard<std::mutex> lock(this->imageMutex);
+    this->latestImage = this->parentSensor->Image();
+    this->newImage = true;
+}
+
+void LogicalCameraPlugin::OnPostRender(){
 
     msgs::LogicalCameraImage logical_image;
+    {
+      std::lock_guard<std::mutex> lock(this->imageMutex);
+      if (!this->newImage)
+        return;
+      logical_image = this->latestImage;
+      this->newImage = false;
+    }
 
     object_pose_msgs::ObjectList msg;
 
-    logical_image = this->parentSensor->Image();
     gazebo::rendering::ScenePtr scene = gazebo::rendering::get_scene();
     if (!scene || !scene->Initialized())
       return;
