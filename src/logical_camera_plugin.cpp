@@ -125,8 +125,15 @@ void LogicalCameraPlugin::OnPostRender(){
 
         std::cmatch m;
 
+        // A scene copy for another robot prefixes its model names with "<robot>__" (e.g. mobipick2__klt_1, #226):
+        // the object is the same class and instance as in the original scene, so drop the prefix.
+        std::string model_name = logical_image.model(i).name();
+        const size_t copy_sep = model_name.rfind("__");
+        if (copy_sep != std::string::npos)
+          model_name = model_name.substr(copy_sep + 2);
+
         //Extract object class id and instance id, assumes class_id format (i.e. box_1)
-        if(std::regex_search(logical_image.model(i).name().c_str(), m, std::regex("(.+)_([0-9]+)")))
+        if(std::regex_search(model_name.c_str(), m, std::regex("(.+)_([0-9]+)")))
         {
           object_msg.class_id = m[1];
           object_msg.instance_id = std::stoi(m[2]);
